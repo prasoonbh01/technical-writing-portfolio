@@ -1,0 +1,5 @@
+site_name: Technical Writing Portfolio
+theme:
+  name: material
+nav:
+  - Home: index.md
