@@ -1,1 +1,44 @@
+name: Daily job leads
 
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  leads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Find new leads and draft pitches
+        env:
+          PORTFOLIO_URL: ${{ vars.PORTFOLIO_URL }}
+          YOUR_NAME: ${{ vars.YOUR_NAME }}
+          SAMPLE_TITLE: ${{ vars.SAMPLE_TITLE }}
+        run: python job_leads.py
+
+      - name: Open an issue with today's leads
+        if: hashFiles('leads.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "New writing leads - $(date -u +%F)" \
+            --body-file leads.md
+
+      - name: Save seen-leads state
+        run: |
+          git config user.name "lead-bot"
+          git config user.email "lead-bot@users.noreply.github.com"
+          git add data/seen.json
+          git diff --cached --quiet || (git commit -m "Update seen leads" && git push)
+
+        
