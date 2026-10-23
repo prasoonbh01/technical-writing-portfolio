@@ -1,5 +1,5 @@
-"""Fetch remote technical-writing leads, drop ones already seen, and draft a
-pitch for each. Writes leads.md only when there is something new."""
+"""Fetch remote writing leads, drop ones already seen, and draft a pitch for
+each. Writes leads.md only when there is something new."""
 import json
 import os
 import urllib.parse
@@ -10,10 +10,14 @@ from pathlib import Path
 SEEN_FILE = Path("data/seen.json")
 OUT_FILE = Path("leads.md")
 
-QUERIES = ["technical writer", "documentation", "developer content"]
+REMOTIVE = "https://remotive.com/api/remote-jobs"
+QUERIES = ["technical writer", "documentation", "developer content", "copywriter", "content writer"]
+CATEGORIES = ["writing", "software-dev"]
 TITLE_KEYWORDS = [
-    "technical writer", "technical writing", "documentation", "docs engineer",
+    "technical writer", "technical writing", "documentation", "docs",
     "content engineer", "api writer", "developer content", "developer docs",
+    "technical content", "copywriter", "content writer", "technical communicator",
+    "writer",
 ]
 PART_TIME_HINTS = ["part-time", "part time", "contract", "freelance"]
 
@@ -29,15 +33,18 @@ def fetch(url):
 
 
 def from_remotive():
+    urls = [f"{REMOTIVE}?search={urllib.parse.quote(q)}" for q in QUERIES]
+    urls += [f"{REMOTIVE}?category={c}" for c in CATEGORIES]
     leads = []
-    for q in QUERIES:
+    for url in urls:
         try:
-            url = "https://remotive.com/api/remote-jobs?search=" + urllib.parse.quote(q)
             data = json.loads(fetch(url))
         except Exception as exc:  # one failing source must not stop the run
-            print(f"Remotive '{q}' failed: {exc}")
+            print(f"Remotive failed ({url}): {exc}")
             continue
-        for job in data.get("jobs", []):
+        jobs = data.get("jobs", [])
+        print(f"Remotive fetched {len(jobs)} from {url}")
+        for job in jobs:
             leads.append({
                 "id": f"remotive-{job['id']}",
                 "title": job.get("title", ""),
@@ -68,6 +75,7 @@ def from_wwr():
             "type": "",
             "source": "We Work Remotely",
         })
+    print(f"We Work Remotely fetched {len(leads)}")
     return leads
 
 
@@ -89,8 +97,12 @@ def pitch(lead):
 def main():
     seen = set(json.loads(SEEN_FILE.read_text())) if SEEN_FILE.exists() else set()
 
+    fetched = from_remotive() + from_wwr()
+    print(f"Total fetched: {len(fetched)}")
+    print("Sample titles:", [l["title"] for l in fetched[:5]])
+
     leads, ids = [], set()
-    for lead in from_remotive() + from_wwr():
+    for lead in fetched:
         if lead["id"] in ids or not relevant(lead):
             continue
         ids.add(lead["id"])
