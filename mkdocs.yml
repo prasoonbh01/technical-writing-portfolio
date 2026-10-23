@@ -3,3 +3,4 @@ theme:
   name: material
 nav:
   - Home: index.md
+  - IPsec Site-to-Site VPN Guide: ipsec-site-to-site-vpn.md
